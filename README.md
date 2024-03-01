@@ -9,7 +9,7 @@
 
     * The difference between a transfer and a transferFrom function, is that the transfer is used to transfer funds to a specific address, from my address, and is issued by me, while the transferFrom function is issued by some approved address to transfer funds from my account to a specific address. Again, the transferFrom function needs to be approved by my address before being issued by the approved address.
 
-2. Write a simple **python script** that gets a public address on the blockchain and gets all the approvals it ever approved  
+2. Write a simple **python script** that gets a public address on the blockchain and gets all the approvals it ever approved.  
    The script should run as follows:  
    ```bash
    $ python my_approvals.py --address 0x...
