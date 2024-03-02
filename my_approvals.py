@@ -51,16 +51,28 @@ ABI = """[
 abi = json.loads(ABI)
 ERC20 = w3.eth.contract(abi=abi)
 
-event = ERC20.events.Approval
+event = ERC20.events.Approval()
 codec = w3.codec
 
 data_filter_set, event_filter_params = construct_event_filter_params(
-    abi,
+    event.abi,
     codec,
-    CONTINUE HERE
+    argument_filters={"address": address},
 )
 
 
-# event_filter = w3.eth.filter({"address": address})
-w3.eth.get_logs(FilterParams(address=address, topics=))
+logs = w3.eth.get_logs(event_filter_params)
+
+# Convert raw binary data to Python proxy objects as described by ABI
+all_events = []
+for log in logs:
+    # Convert raw JSON-RPC log result to human readable event by using ABI data
+    # More information how process_log works here
+    # https://github.com/ethereum/web3.py/blob/fbaf1ad11b0c7fac09ba34baff2c256cffe0a148/web3/_utils/events.py#L200
+    evt = get_event_data(codec, event.abi, log)
+    # Note: This was originally yield,
+    # but deferring the timeout exception caused the throttle logic not to work
+    all_events.append(evt)
+
+print(len(all_events))
 
