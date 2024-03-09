@@ -96,3 +96,23 @@ def get_contract_token_symbol(w3: Web3, contract_address: str) -> str:
 
     token_symbol = contract.functions.symbol().call()
     return token_symbol
+
+
+def print_approvals_of_owner(w3: Web3, owner_address: str):
+    approval_contract = w3.eth.contract(abi=APPROVALS_ABI)
+
+    approval_event = approval_contract.events.Approval()
+    codec = w3.codec
+
+    approvals_filter = get_approvals_of_owner_filter(
+        w3=w3, approval_event=approval_event, codec=codec, owner_address=owner_address
+    )
+    logs = approvals_filter.get_all_entries()
+    parsed_approvals = parse_approval_logs(
+        approval_event=approval_event, codec=codec, logs=logs
+    )
+    for approval in parsed_approvals:
+        token_symbol = get_contract_token_symbol(
+            w3=w3, contract_address=approval.address
+        )
+        print(f"approval on {token_symbol} on amount of {approval.args.value}")
