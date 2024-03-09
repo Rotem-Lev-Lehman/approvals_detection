@@ -2,7 +2,7 @@ from web3 import Web3
 from web3._utils.filters import construct_event_filter_params, Filter
 from web3._utils.events import get_event_data
 from web3.types import LogReceipt, EventData
-from typing import Final, Any
+from typing import Final, Any, Callable
 from web3.contract.base_contract import BaseContractEvent
 from eth_abi.codec import ABICodec
 import requests
@@ -23,7 +23,7 @@ APPROVALS_ABI: Final[list[dict[str, Any]]] = [
     }
 ]
 
-# Only define the symbol and name functions
+# Only define the symbol and name and balanceOf functions
 TOKEN_DATA_ABI: Final[list[dict[str, Any]]] = [
     {
         "inputs": [],
@@ -37,6 +37,14 @@ TOKEN_DATA_ABI: Final[list[dict[str, Any]]] = [
         "name": "symbol",
         "outputs": [{"internalType": "string", "name": "", "type": "string"}],
         "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "constant": True,
+        "inputs": [{"name": "_owner", "type": "address"}],
+        "name": "balanceOf",
+        "outputs": [{"name": "balance", "type": "uint256"}],
+        "payable": False,
         "type": "function",
     },
 ]
@@ -96,25 +104,26 @@ def parse_approval_logs(
     return all_events
 
 
-def get_contract_token_name_and_symbol(
+def get_contract_token_data(
     w3: Web3, contract_address: str
-) -> tuple[str, str]:
+) -> tuple[str, str, Callable]:
     """
-    Returns the token's name and symbol of the given contract address
+    Returns the token's data of the given contract address
 
     Args:
         w3 (Web3): The web3 API
         contract_address (str): The address of the contract
 
     Returns:
-        tuple[str, str]: (name, symbol) of the given token
+        tuple[str, str, Callable]: (name, symbol, balanceOf_function) of the given token
     """
 
     contract = w3.eth.contract(contract_address, abi=TOKEN_DATA_ABI)
 
     token_name = contract.functions.name().call()
     token_symbol = contract.functions.symbol().call()
-    return token_name, token_symbol
+    token_balanceOf_function = contract.functions.balanceOf
+    return token_name, token_symbol, token_balanceOf_function
 
 
 def print_approvals_of_owner(w3: Web3, owner_address: str):
@@ -140,12 +149,15 @@ def print_approvals_of_owner(w3: Web3, owner_address: str):
         approval_event=approval_event, codec=codec, logs=logs
     )
     for approval in parsed_approvals:
-        token_name, token_symbol = get_contract_token_name_and_symbol(
+        approve_amount = int(approval.args.value)
+        token_name, token_symbol, token_balanceOf_function = get_contract_token_data(
             w3=w3, contract_address=approval.address
         )
         token_price = get_token_price(token_name=token_name, token_symbol=token_symbol)
+        balance = int(token_balanceOf_function(owner_address).call())
+        exposure = min(approve_amount, balance)
         print(
-            f"approval on {token_symbol} on amount of {approval.args.value} --- Token's price = {token_price} USD"
+            f"approval on {token_symbol} on amount of {approve_amount} --- Token's price = {token_price} USD --- exposure = {exposure}"
         )
 
 
