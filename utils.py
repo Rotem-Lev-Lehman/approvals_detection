@@ -44,6 +44,8 @@ def get_approvals_of_owner_filter(
 
     Args:
         w3 (Web3): The web3 API
+        approval_event (type[BaseContractEvent]): The approval event with the approval abi in it
+        codec (ABICodec): The eth codec
         owner_address (str): The owner address that approved
 
     Returns:
@@ -68,6 +70,8 @@ def parse_approval_logs(
     Parse the raw binary logs to python proxy objects as described by the APPROVALS_ABI
 
     Args:
+        approval_event (type[BaseContractEvent]): The approval event with the approval abi in it
+        codec (ABICodec): The eth codec
         logs (list[LogReceipt]): The logs to parse
 
     Returns:
@@ -86,6 +90,7 @@ def get_contract_token_symbol(w3: Web3, contract_address: str) -> str:
     Returns the token's symbol of the given contract address
 
     Args:
+        w3 (Web3): The web3 API
         contract_address (str): The address of the contract
 
     Returns:
@@ -99,6 +104,15 @@ def get_contract_token_symbol(w3: Web3, contract_address: str) -> str:
 
 
 def print_approvals_of_owner(w3: Web3, owner_address: str):
+    """
+    Print the approvals of an owner address in the format of:
+    approval on {token_symbol} on amount of {approval_amount}
+
+    Args:
+        w3 (Web3): The web3 API
+        owner_address (str): The owner address that approved
+    """
+
     approval_contract = w3.eth.contract(abi=APPROVALS_ABI)
 
     approval_event = approval_contract.events.Approval()
