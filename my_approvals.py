@@ -4,6 +4,7 @@ from web3.types import FilterParams
 from web3._utils.filters import construct_event_filter_params
 from web3._utils.events import get_event_data
 import json
+from web3.datastructures import AttributeDict
 
 parser = argparse.ArgumentParser(description="Get all approvals for an address on the blockchain.")
 parser.add_argument("--address", type=str, required=True, help="The address on the blockchain to get approvals of.")
@@ -57,11 +58,13 @@ codec = w3.codec
 data_filter_set, event_filter_params = construct_event_filter_params(
     event.abi,
     codec,
-    argument_filters={"address": address},
+    argument_filters={"owner": address},
+    fromBlock=0
 )
 
 
-logs = w3.eth.get_logs(event_filter_params)
+approvals_filter = w3.eth.filter(event_filter_params)
+logs = approvals_filter.get_all_entries()
 
 # Convert raw binary data to Python proxy objects as described by ABI
 all_events = []
@@ -76,3 +79,35 @@ for log in logs:
 
 print(len(all_events))
 
+
+def get_approvals_of_owner(w3: Web3, owner_address: str) -> list[AttributeDict]:
+    """
+    Returns all of the approvals that the given owner approved
+
+    Args:
+        w3 (Web3): The web3 API
+        owner_address (str): The owner address that approved
+
+    Returns:
+        list[AttributeDict]: All of the approvals that the given owner approved
+    """
+    pass
+
+
+def get_contract_token_symbol(w3: Web3, contract_address: str) -> str:
+    """
+    Returns the token's symbol of the given contract address
+
+    Args:
+        contract_address (str): The address of the contract
+
+    Returns:
+        str: The symbol of the token
+    """
+    
+    abi = [{"inputs":[],"name":"symbol","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"}]
+    
+    contract = w3.eth.contract(contract_address, abi=abi)
+
+    token_symbol = contract.functions.symbol().call() 
+    return token_symbol
