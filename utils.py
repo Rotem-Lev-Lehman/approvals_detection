@@ -89,6 +89,22 @@ class ApprovalData:
     exposure_usd: float | None  # This field is None if the token_price is None
 
 
+def get_web3_api() -> Web3:
+    """
+    Gets a web3 API object that can query the infura API
+
+    Returns:
+        Web3: The web3 API
+    """
+
+    mainnet_url = "mainnet.infura.io/v3"
+    with open("api_key.txt", "r") as key_file:
+        api_key = key_file.read()
+
+    provider_url = f"{mainnet_url}/{api_key}"
+    w3 = Web3(Web3.HTTPProvider(f"https://{provider_url}"))
+
+
 def get_approvals_of_owner_filter(
     w3: Web3,
     approval_event: type[BaseContractEvent],
