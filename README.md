@@ -18,3 +18,27 @@
    approval on USDT on amount of 77
    ...
    ```
+
+
+## Extensions
+
+1. Expose API
+
+    Create a self-hosted service using FastAPI that exposes interface to get approvals for a list of given addresses.
+
+    1. This service should be able to serve multiple users simultaneously.
+    2. Make sure not to hit the rate limit of the node provider. What happens if a node error occurs?
+
+    use python aynscio primitives if you can
+
+2. Enriched data
+
+    1. Add an option to the API to have **token_price** data for every token:
+        * Use the CoinGecko API: https://www.coingecko.com/en/api/documentation.  
+        (if the token price isn’t found with the API - return null)
+        
+    
+    2. **Exposure:** is defined to be the minimum between the amount the user have in it’s balance, and the amount that he approves  
+        `⇒ min(approve_amount, user_token_balance)`
+            
+        Include in the response with every token:  the amount is USD that the user is **exposed** **to**
