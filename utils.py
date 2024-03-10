@@ -7,6 +7,8 @@ from web3.contract.base_contract import BaseContractEvent
 from eth_abi.codec import ABICodec
 import requests
 from requests import Response
+from dataclasses import dataclass
+import math
 
 
 # Only Approval event
@@ -47,9 +49,30 @@ TOKEN_DATA_ABI: Final[list[dict[str, Any]]] = [
         "payable": False,
         "type": "function",
     },
+    {
+        "constant": True,
+        "inputs": [],
+        "name": "decimals",
+        "outputs": [{"name": "", "type": "uint8"}],
+        "payable": False,
+        "stateMutability": "view",
+        "type": "function",
+    },
 ]
 
 COINGECKO_URL: Final[str] = "https://api.coingecko.com/api/v3/simple/price"
+
+
+@dataclass
+class TokenData:
+    """
+    A class that represents the data we need on a token
+    """
+
+    name: str
+    symbol: str
+    balanceOf_function: Callable
+    decimals: int
 
 
 def get_approvals_of_owner_filter(
@@ -104,9 +127,7 @@ def parse_approval_logs(
     return all_events
 
 
-def get_contract_token_data(
-    w3: Web3, contract_address: str
-) -> tuple[str, str, Callable]:
+def get_contract_token_data(w3: Web3, contract_address: str) -> TokenData:
     """
     Returns the token's data of the given contract address
 
@@ -115,7 +136,7 @@ def get_contract_token_data(
         contract_address (str): The address of the contract
 
     Returns:
-        tuple[str, str, Callable]: (name, symbol, balanceOf_function) of the given token
+        TokenData: The data of the given token
     """
 
     contract = w3.eth.contract(contract_address, abi=TOKEN_DATA_ABI)
@@ -123,7 +144,14 @@ def get_contract_token_data(
     token_name = contract.functions.name().call()
     token_symbol = contract.functions.symbol().call()
     token_balanceOf_function = contract.functions.balanceOf
-    return token_name, token_symbol, token_balanceOf_function
+    token_decimals = int(contract.functions.decimals().call())
+
+    return TokenData(
+        name=token_name,
+        symbol=token_symbol,
+        balanceOf_function=token_balanceOf_function,
+        decimals=token_decimals,
+    )
 
 
 def print_approvals_of_owner(w3: Web3, owner_address: str):
@@ -150,14 +178,27 @@ def print_approvals_of_owner(w3: Web3, owner_address: str):
     )
     for approval in parsed_approvals:
         approve_amount = int(approval.args.value)
-        token_name, token_symbol, token_balanceOf_function = get_contract_token_data(
-            w3=w3, contract_address=approval.address
-        )
-        token_price = get_token_price(token_name=token_name, token_symbol=token_symbol)
-        balance = int(token_balanceOf_function(owner_address).call())
+        token_data = get_contract_token_data(w3=w3, contract_address=approval.address)
+        approve_amount = approve_amount / math.pow(10, token_data.decimals)
+
+        balance = int(token_data.balanceOf_function(owner_address).call())
+        balance = balance / math.pow(10, token_data.decimals)
         exposure = min(approve_amount, balance)
+
+        token_price = get_token_price(
+            token_name=token_data.name, token_symbol=token_data.symbol
+        )
+
+        if token_price:
+            exposure = exposure * token_price
+            exposure_str = f"{exposure} USD"
+            token_price_str = f"{token_price} USD"
+        else:
+            exposure_str = f"{exposure} (No token price found)"
+            token_price_str = "None"
+
         print(
-            f"approval on {token_symbol} on amount of {approve_amount} --- Token's price = {token_price} USD --- exposure = {exposure}"
+            f"approval on {token_data.symbol} on amount of {approve_amount} --- Token's price = {token_price_str} --- exposure = {exposure_str}"
         )
 
 
