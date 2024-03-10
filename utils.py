@@ -66,13 +66,27 @@ COINGECKO_URL: Final[str] = "https://api.coingecko.com/api/v3/simple/price"
 @dataclass
 class TokenData:
     """
-    A class that represents the data we need on a token
+    A dataclass that represents the data we need on a token
     """
 
     name: str
     symbol: str
     balanceOf_function: Callable
     decimals: int
+
+
+@dataclass
+class ApprovalData:
+    """
+    A dataclass that represents the data we need to return about an approval
+    """
+
+    token_name: str
+    token_symbol: str
+    approval_amount: float
+    token_price: float | None
+    exposure: float
+    exposure_usd: float | None  # This field is None if the token_price is None
 
 
 def get_approvals_of_owner_filter(
@@ -154,14 +168,16 @@ def get_contract_token_data(w3: Web3, contract_address: str) -> TokenData:
     )
 
 
-def print_approvals_of_owner(w3: Web3, owner_address: str):
+def get_approvals_data_of_owner(w3: Web3, owner_address: str) -> list[ApprovalData]:
     """
-    Print the approvals of an owner address in the format of:
-    approval on {token_symbol} on amount of {approval_amount}
+    Returns a list of approvals data of the given owner
 
     Args:
         w3 (Web3): The web3 API
         owner_address (str): The owner address that approved
+
+    Returns:
+        list[ApprovalData]: Approvals data of the given owner
     """
 
     approval_contract = w3.eth.contract(abi=APPROVALS_ABI)
@@ -176,6 +192,8 @@ def print_approvals_of_owner(w3: Web3, owner_address: str):
     parsed_approvals = parse_approval_logs(
         approval_event=approval_event, codec=codec, logs=logs
     )
+
+    all_approvals_data = []
     for approval in parsed_approvals:
         approve_amount = int(approval.args.value)
         token_data = get_contract_token_data(w3=w3, contract_address=approval.address)
@@ -189,16 +207,42 @@ def print_approvals_of_owner(w3: Web3, owner_address: str):
             token_name=token_data.name, token_symbol=token_data.symbol
         )
 
-        if token_price:
-            exposure = exposure * token_price
-            exposure_str = f"{exposure} USD"
-            token_price_str = f"{token_price} USD"
+        exposure_usd = exposure * token_price if token_price else None
+        approval_data = ApprovalData(
+            token_name=token_data.name,
+            token_symbol=token_data.symbol,
+            approval_amount=approve_amount,
+            token_price=token_price,
+            exposure=exposure,
+            exposure_usd=exposure_usd,
+        )
+        all_approvals_data.append(approval_data)
+
+    return all_approvals_data
+
+
+def print_approvals_of_owner(w3: Web3, owner_address: str):
+    """
+    Print the approvals of an owner address in the format of:
+    approval on {token_symbol} on amount of {approval_amount}
+
+    Args:
+        w3 (Web3): The web3 API
+        owner_address (str): The owner address that approved
+    """
+
+    all_approvals_data = get_approvals_data_of_owner(w3=w3, owner_address=owner_address)
+
+    for approval_data in all_approvals_data:
+        if approval_data.token_price:
+            exposure_str = f"{approval_data.exposure_usd} USD"
+            token_price_str = f"{approval_data.token_price} USD"
         else:
-            exposure_str = f"{exposure} (No token price found)"
+            exposure_str = f"{approval_data.exposure} (No token price found)"
             token_price_str = "None"
 
         print(
-            f"approval on {token_data.symbol} on amount of {approve_amount} --- Token's price = {token_price_str} --- exposure = {exposure_str}"
+            f"approval on {approval_data.token_symbol} on amount of {approval_data.approval_amount} --- Token's price = {token_price_str} --- exposure = {exposure_str}"
         )
 
 
