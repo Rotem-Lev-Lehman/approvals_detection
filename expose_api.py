@@ -3,14 +3,16 @@ from utils import get_approvals_data_of_owner, get_web3_api
 from typing import Any
 from dataclasses import asdict
 import asyncio
-from asyncio import Task
+from asyncio import Future
+from concurrent.futures import ThreadPoolExecutor
 
 
 app = FastAPI()
 w3 = get_web3_api()
+_executer = ThreadPoolExecutor(4)
 
 
-async def get_approvals_task(address: str) -> list[dict[str, Any]]:
+def get_approvals_task(address: str) -> list[dict[str, Any]]:
     """
     An approval task, that gets the approvals of the given owner, and formats them as a dict to be returned
 
@@ -47,13 +49,17 @@ async def get_approvals(addresses: list[str] = Query(None)):
         addresses (list[str], optional): The list of addresses to query their approvals. Defaults to Query(None).
     """
 
-    tasks_dict: dict[str, Task] = {}
-    tasks_list: list[Task] = []
+    loop = asyncio.get_event_loop()
+
+    futures_dict: dict[str, Future] = {}
+    futures_list: list[Future] = []
     for address in addresses:
-        task = asyncio.create_task(get_approvals_task(address=address))
-        tasks_dict[address] = task
-        tasks_list.append(task)
+        # Use run_in_executer since the functions in web3 are not marked with async,
+        # and therefore can't be ran with it just like that (could be blocking).
+        future = loop.run_in_executor(_executer, get_approvals_task, address)
+        futures_dict[address] = future
+        futures_list.append(future)
 
-    await asyncio.wait(tasks_list)
+    await asyncio.wait(futures_list)
 
-    return {address: task.result() for address, task in tasks_dict.items()}
+    return {address: task.result() for address, task in futures_dict.items()}
