@@ -31,6 +31,16 @@
 
     use python aynscio primitives if you can
 
+    Answers:
+
+    1. Make sure to run it using:
+        ```bash
+        uvicorn expose_api:app --reload --workers <num_of_workers>
+        ```
+
+    2. It never hit the rate limit for me, since I could not create so many users simultaneously, but I saw [this article](https://coinsbench.com/simple-web3-py-script-to-test-rpc-node-provider-rate-limit-and-latency-5a081adaa4c7) which can test the rate limit of the node. I did not run it since I don't have the time to explore it, so I am leaving it as an open issue.  
+    About what happens if a node error occurs, it will raise an Exception with the node error reason in it and you can parse it. I also did not catch that exception and am leaving it as an open issue as well.
+
 2. Enriched data
 
     1. Add an option to the API to have **token_price** data for every token:
