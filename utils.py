@@ -103,6 +103,7 @@ def get_web3_api() -> Web3:
 
     provider_url = f"{mainnet_url}/{api_key}"
     w3 = Web3(Web3.HTTPProvider(f"https://{provider_url}"))
+    return w3
 
 
 def get_approvals_of_owner_filter(
